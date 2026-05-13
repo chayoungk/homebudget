@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="가계부">
+<meta name="theme-color" content="#0f0f1a">
+<title>범이 가계부</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="app-ttl">💰 범이 가계부</div>
+    <div class="mnav">
+      <button class="mbtn" onclick="chMonth(-1)">‹</button>
+      <select id="monthSelect" onchange="chMonthSelect(this.value)" style="background:var(--card);border:1px solid rgba(255,255,255,.1);color:var(--txt);padding:6px 8px;border-radius:6px;font-size:14px;font-weight:600;font-family:inherit;outline:none;cursor:pointer;min-width:90px">
+      </select>
+      <button class="mbtn" onclick="chMonth(1)">›</button>
+    </div>
+  </div>
+  <div class="sums">
+    <div class="scard"><div class="slbl">수입</div><div class="samt" id="s-inc" style="color:var(--inc)">0원</div></div>
+    <div class="scard"><div class="slbl">지출</div><div class="samt" id="s-exp" style="color:var(--exp)">0원</div></div>
+    <div class="scard"><div class="slbl">저축</div><div class="samt" id="s-sav" style="color:var(--sav)">0원</div></div>
+    <div class="scard"><div class="slbl">잔액</div><div class="samt" id="s-bal">0원</div></div>
+  </div>
+</div>
+
+<div class="tabs" id="ledger-tabs">
+  <button class="tbtn on" onclick="swTab('fixed',this)">고정지출</button>
+  <button class="tbtn" onclick="swTab('variable',this)">변동지출</button>
+  <button class="tbtn" onclick="swTab('irregular',this)">비정기</button>
+  <button class="tbtn" onclick="swTab('asset',this)">자산/저축</button>
+  <button class="tbtn" onclick="swTab('income',this)">수입</button>
+</div>
+
+<div class="scroll" id="main-scroll">
+
+  <div class="page on" id="pg-ledger">
+    <div id="tab-fixed" class="tc">
+      <div class="sec-hdr"><span class="sec-ttl">고정 지출</span><span class="sec-tot" id="tot-fixed" style="color:var(--exp)"></span></div>
+      <div id="list-fixed"></div>
+    </div>
+    <div id="tab-variable" class="tc" style="display:none">
+      <div class="sec-hdr"><span class="sec-ttl">변동 지출</span><span class="sec-tot" id="tot-variable" style="color:var(--exp)"></span></div>
+      <div id="list-variable"></div>
+    </div>
+    <div id="tab-irregular" class="tc" style="display:none">
+      <div class="sec-hdr"><span class="sec-ttl">비정기 지출</span><span class="sec-tot" id="tot-irregular" style="color:var(--exp)"></span></div>
+      <div id="list-irregular"></div>
+    </div>
+    <div id="tab-asset" class="tc" style="display:none">
+      <div class="sec-hdr"><span class="sec-ttl">자산 및 저축</span><span class="sec-tot" id="tot-asset" style="color:var(--sav)"></span></div>
+      <div id="list-asset"></div>
+
+    </div>
+    <div id="tab-income" class="tc" style="display:none">
+      <div class="sec-hdr"><span class="sec-ttl">수입</span><span class="sec-tot" id="tot-income" style="color:var(--inc)"></span></div>
+      <div id="list-income"></div>
+    </div>
+  </div>
+
+  <div class="page" id="pg-stats">
+    <div class="daily-card">
+      <div style="font-size:10px;color:var(--txt3);letter-spacing:.5px;font-weight:600">📅 오늘의 권장 지출 </div>
+      <div class="daily-main" id="dailyAmt">-</div>
+      <div class="daily-sub" id="dailySub"></div>
+      <div class="daily-warn" id="dailyWarn" style="display:none"></div>
+    </div>
+
+    <div class="stat-card" id="stat-budget-summary">
+      <div class="stat-ttl">📋 월 예산 요약</div>
+      <div style="display:flex;flex-direction:column;gap:8px" id="budget-summary-rows"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-ttl">카테고리별 지출</div>
+      <div id="catBars"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-ttl">항목별 예산 vs 실제</div>
+      <div id="itemBars"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-ttl">최근 순자산 (수입-지출)</div>
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <button class="period-btn on" onclick="swPeriod(3,this)">3개월</button>
+        <button class="period-btn" onclick="swPeriod(6,this)">6개월</button>
+        <button class="period-btn" onclick="swPeriod(12,this)">1년</button>
+        <select id="yearSelect" class="styled-select" onchange="swYear(this.value)" style="display:none"></select>
+      </div>
+      <div class="mb-wrap" id="mb-bars"></div>
+      <div id="mb-lbls" style="display:flex;gap:5px"></div>
+    </div>
+    <div class="stat-card" id="stat-income">
+      <div class="stat-ttl">💵 수입 현황</div>
+      <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+        <button class="period-btn on" id="inc-period-btn-3" onclick="swIncPeriod(3,this)">3개월</button>
+        <button class="period-btn" id="inc-period-btn-6" onclick="swIncPeriod(6,this)">6개월</button>
+        <button class="period-btn" id="inc-period-btn-12" onclick="swIncPeriod(12,this)">1년</button>
+        <select id="incYearSelect" class="styled-select" onchange="swIncYear(this.value)" style="display:none"></select>
+      </div>
+      <div class="mb-wrap" id="inc-bars"></div>
+      <div id="inc-lbls" style="display:flex;gap:5px;margin-bottom:12px"></div>
+      <div id="inc-item-bars"></div>
+    </div>
+  </div>
+
+  <div class="page" id="pg-settings">
+    <div style="font-size:13px;color:var(--txt2);font-weight:600;margin-bottom:10px;padding-top:4px">➕ 새 항목 추가</div>
+    <div class="add-form">
+      <select id="newCat">
+        <option value="fixed">고정 지출</option>
+        <option value="variable">변동 지출</option>
+        <option value="irregular">비정기 지출</option>
+        <option value="asset">자산/저축</option>
+        <option value="income">수입</option>
+      </select>
+      <input type="text" id="newName" placeholder="항목 이름">
+      <input type="number" id="newBudget" placeholder="예산 금액 (예: 50000)" inputmode="numeric">
+      <button onclick="addItem()">추가하기</button>
+    </div>
+    <div style="font-size:13px;color:var(--txt2);font-weight:600;margin-bottom:10px">📋 예산 설정</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--card);border-radius:var(--rs)">
+        <span style="font-size:11px;color:var(--txt3);font-weight:600">월 지출 예산</span>
+        <span id="tot-expense-budget" style="color:var(--exp);font-weight:700;font-size:13px">0원</span>
+        <span style="font-size:11px;color:var(--txt3);font-weight:600;margin-left:12px">저축 예산</span>
+        <span id="tot-savings-budget" style="color:var(--sav);font-weight:700;font-size:13px">0원</span>
+      </div>
+    </div>
+    <div class="set-sec-lbl flex-between" style="margin-top:0">
+      <span>고정 지출</span><span id="set-tot-fixed" style="color:var(--txt)">0원</span>
+    </div>
+    <div class="set-grp" id="set-fixed"></div>
+    <div class="set-sec-lbl flex-between">
+      <span>변동 지출</span><span id="set-tot-variable" style="color:var(--txt)">0원</span>
+    </div>
+    <div class="set-grp" id="set-variable"></div>
+    <div class="set-sec-lbl flex-between">
+      <span>비정기 지출 <span style="color:#a78bfa;font-weight:500">(연간 예산)</span></span>
+      <span id="set-tot-irregular" style="color:#a78bfa">0원</span>
+    </div>
+    <div class="set-grp" id="set-irregular"></div>
+    <div class="set-sec-lbl flex-between">
+      <span>자산 / 저축</span><span id="set-tot-asset" style="color:var(--sav)">0원</span>
+    </div>
+    <div class="set-grp" id="set-asset"></div>
+    <button class="set-save" onclick="saveBudgets()">수정한 예산 저장하기</button>
+    <button class="set-reset" onclick="resetData()">초기화하기</button>
+    <div style="margin-top:16px;padding:13px;background:var(--card);border-radius:var(--r);font-size:12px;color:var(--txt3);line-height:1.8">
+      💡 홈화면에 추가하는 법<br>
+      iOS: Safari → 공유(□↑) → 홈 화면에 추가<br>
+      Android: Chrome → 메뉴(⋮) → 홈 화면에 추가
+    </div>
+  </div>
+</div>
+
+<div class="bnav">
+  <button class="nbtn on" onclick="swPage('ledger',this)"><div class="nicon">📒</div><div class="nlbl">가계부</div></button>
+  <button class="nbtn" onclick="swPage('stats',this)"><div class="nicon">📊</div><div class="nlbl">통계</div></button>
+  <button class="nbtn" onclick="swPage('settings',this)"><div class="nicon">⚙️</div><div class="nlbl">설정</div></button>
+</div>
+
+<div class="det-ov" id="detOv" onclick="if(event.target===this)closeOv('detOv')">
+  <div class="det-sheet">
+    <div class="det-hdr">
+      <div class="det-hdr-top">
+        <div class="det-name" id="det-name"></div>
+        <button class="det-close" onclick="closeOv('detOv')">✕</button>
+      </div>
+      <div class="det-total" id="det-total"></div>
+      <div class="det-bud" id="det-bud"></div>
+      <div style="margin-top:10px">
+        <button onclick="openMemoAdd()" style="background:var(--acc);color:#fff;border:none;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">+ 내역 추가</button>
+      </div>
+    </div>
+    <div class="det-body" id="det-body"></div>
+  </div>
+</div>
+
+<div class="ov" id="memoOv" onclick="if(event.target===this)closeOv('memoOv')">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sht-ttl" id="memo-ttl">내역 추가</div>
+    <div class="sht-bud" id="memo-bud"></div>
+    <input type="number" class="sht-inp" id="memo-inp" inputmode="numeric" placeholder="0" onkeydown="if(event.key==='Enter')saveMemo()">
+    <div class="divider"></div>
+    <div class="sht-lbl">💳 결제 수단</div>
+    <div class="sel-group" id="memo-pay">
+      <button class="sel-btn sel-pay" data-val="생활비카드" onclick="sel(this,'memo-pay')">생활비 카드</button>
+      <button class="sel-btn sel-pay" data-val="신용카드" onclick="sel(this,'memo-pay')">신용카드</button>
+      <button class="sel-btn sel-pay" data-val="계좌이체" onclick="sel(this,'memo-pay')">계좌이체</button>
+      <button class="sel-btn sel-pay" data-val="현금" onclick="sel(this,'memo-pay')">현금</button>
+    </div>
+    <div class="sht-lbl">👤 결제자</div>
+    <div class="sel-group" id="memo-person">
+      <button class="sel-btn sel-person" data-val="기주" onclick="sel(this,'memo-person')">기주</button>
+      <button class="sel-btn sel-person" data-val="차영" onclick="sel(this,'memo-person')">차영</button>
+      <button class="sel-btn sel-person" data-val="공동" onclick="sel(this,'memo-person')">공동</button>
+    </div>
+    <div class="sht-lbl">✏️ 메모 (선택)</div>
+    <textarea class="sht-memo" id="memo-txt" rows="2" placeholder="예: 이마트 장보기, 치킨 배달..."></textarea>
+    <button class="sht-ok" id="memo-save-btn" onclick="saveMemo()">✓ 추가</button>
+    <div class="sht-cl" onclick="closeOv('memoOv')">취소</div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
