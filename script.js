@@ -37,7 +37,8 @@ const defaultItems={
     {id:'a2',name:'청년적금',budget:500000,dot:'#7c6fff'},
   ],
   income:[
-    {id:'in1',name:'급여',budget:0,dot:'#43e97b'},
+    {id:'in1',name:'남편 급여',budget:0,dot:'#43e97b'},
+    {id:'in2',name:'아내 급여',budget:0,dot:'#43e97b'},
     {id:'in3',name:'기타 수입',budget:0,dot:'#43e97b'},
   ]
 };
@@ -98,7 +99,14 @@ function getDefaultBudget(id){
 }
 
 function loadItems(){
-  try{const s=JSON.parse(localStorage.getItem('hb_items'));ITEMS=s&&Object.keys(s).length>0?s:JSON.parse(JSON.stringify(defaultItems));}
+  try{
+    const s=JSON.parse(localStorage.getItem('hb_items'));
+    const requiredCats=['fixed','variable','irregular','asset','income'];
+    const isValid=s&&requiredCats.every(c=>Array.isArray(s[c]));
+    ITEMS=isValid?s:JSON.parse(JSON.stringify(defaultItems));
+    // 누락된 카테고리 보완
+    requiredCats.forEach(c=>{if(!ITEMS[c])ITEMS[c]=defaultItems[c]?JSON.parse(JSON.stringify(defaultItems[c])):[];});
+  }
   catch{ITEMS=JSON.parse(JSON.stringify(defaultItems));}
 }
 function saveItems(){localStorage.setItem('hb_items',JSON.stringify(ITEMS));}
@@ -597,9 +605,13 @@ function renderSettingsPage(){
     } else {
       el.innerHTML=ITEMS[cat].map(it=>{
         const unit=cat==='irregular'?'원/년':'원';
-        const hint=cat==='irregular'?`<span style="font-size:10px;color:var(--txt3);margin-left:2px">(연간)</span>`:'';
         const displayBudget=cat==='irregular'?it.budget:getBudget(it.id,cy,cm);
-        return`<div class="set-row"><button class="set-del" onclick="delItem('${cat}','${it.id}')">×</button><span class="set-lbl">${it.name}</span><input class="set-inp s-inp" type="number" inputmode="numeric" data-id="${it.id}" value="${displayBudget}"><span class="set-unit">${unit}</span>${hint}</div>`;
+        const isOverride=cat!=='irregular'&&mBudget[it.id]!==undefined;
+        const hint=cat==='irregular'
+          ?`<span style="font-size:10px;color:var(--txt3);margin-left:2px">(연간)</span>`
+          :isOverride?`<span style="font-size:10px;color:var(--acc4);margin-left:4px" title="이 달만 다른 예산">이달</span>`:'';
+        const inputColor=isOverride?'color:var(--acc4)':'';
+        return`<div class="set-row"><button class="set-del" onclick="delItem('${cat}','${it.id}')">×</button><span class="set-lbl">${it.name}</span><input class="set-inp s-inp" type="number" inputmode="numeric" data-id="${it.id}" data-original="${displayBudget}" data-cat="${cat}" value="${displayBudget}" style="${inputColor}" oninput="onBudgetInput(this)"><span class="set-unit">${unit}</span>${hint}</div>`;
       }).join('');
     }
     const totEl=document.getElementById('set-tot-'+cat);
@@ -627,31 +639,54 @@ function renderSettingsPage(){
   }
 }
 function saveBudgets(){
+  // 변경된 항목만 이 달 mBudget에 저장 (비정기는 연간이므로 ITEMS에 저장)
+  let changedCount=0;
   document.querySelectorAll('.s-inp').forEach(inp=>{
-    const id=inp.dataset.id,v=parseInt(inp.value)||0;
+    const id=inp.dataset.id;
+    const v=parseInt(inp.value)||0;
+    const original=parseInt(inp.dataset.original)||0;
+    if(v===original)return;
+    changedCount++;
     const cat=findCategoryById(id);
-
-    // 비정기 지출은 ITEMS에 직접 저장 (연간 예산)
+    const t=findItemById(id);
     if(cat==='irregular'){
-      Object.keys(ITEMS).forEach(c=>{
-        const t=ITEMS[c].find(i=>i.id===id);
-        if(t)t.budget=v;
-      });
+      if(t)t.budget=v;
     } else {
-      // 다른 카테고리는 월별 저장
-      const def=getDefaultBudget(id);
-      if(v===def){
-        delete mBudget[id];
-      } else {
-        mBudget[id]=v;
-      }
+      mBudget[id]=v;
     }
   });
+  if(changedCount===0){alert('변경된 항목이 없습니다.');return;}
   saveItems();
   saveBudgetMonth(cy,cm);
   renderAll();
-  alert(`${cy}년 ${cm}월 예산이 저장되었습니다!`);
+  alert(`${cy}년 ${cm}월 예산이 저장되었습니다.`);
 }
+function onBudgetInput(inp){
+  const v=parseInt(inp.value)||0;
+  const original=parseInt(inp.dataset.original)||0;
+  const cat=inp.dataset.cat;
+  if(v!==original){
+    inp.style.color='var(--acc4)';
+    // 옆에 변경 표시
+    let mark=inp.parentElement.querySelector('.changed-mark');
+    if(!mark){
+      mark=document.createElement('span');
+      mark.className='changed-mark';
+      mark.textContent='●';
+      mark.style.cssText='color:var(--acc4);font-size:10px;margin-left:4px;flex-shrink:0';
+      inp.parentElement.appendChild(mark);
+    }
+  } else {
+    inp.style.color=cat==='irregular'?'var(--acc)':'var(--acc)';
+    const mark=inp.parentElement.querySelector('.changed-mark');
+    if(mark)mark.remove();
+  }
+}
+function confirmDefaultSave(){
+  if(!confirm('기본 예산을 변경할까요?\n월별 설정이 없는 모든 달에 적용됩니다.'))return;
+  saveBudgets('default');
+}
+
 function addItem(){
   const cat=document.getElementById('newCat').value;
   const name=document.getElementById('newName').value.trim();
@@ -676,6 +711,19 @@ function resetData(){
   if(!confirm('모든 데이터를 초기화할까요?\n(초기 예산과 모든 내역이 삭제됩니다)'))return;
   localStorage.clear();
   location.reload();
+}
+
+function resetMonth(){
+  if(!confirm(`${cy}년 ${cm}월 데이터를 초기화할까요?\n지출 내역과 이달 예산 설정이 삭제되며\n다른 달에는 영향이 없습니다.`))return;
+  // 이달 지출/메모/예산 데이터만 삭제
+  localStorage.removeItem(dk(cy,cm));
+  localStorage.removeItem(mk(cy,cm));
+  localStorage.removeItem(bk(cy,cm));
+  mData={};
+  mMemos={};
+  mBudget={};
+  renderAll();
+  alert(`${cy}년 ${cm}월 데이터가 초기화되었습니다.`);
 }
 
 function swTab(tab,btn){
