@@ -221,15 +221,41 @@ function renderList(cat,listId,totId){
 
 function renderSummary(){
   const exp=sumCategories(['fixed','variable','irregular']),sav=sumCategory('asset'),inc=sumCategory('income');
-  const bal=inc-exp-sav;
+  const balance=inc-exp-sav; // 잔액: 수입-지출-저축
+  
+  // 누적금액: 첫 달부터 (수입-지출)을 월단위로 누적
+  let cumulative=0;
+  if(cy>2025 || (cy===2025&&cm>=1)){
+    // 2025년 1월부터 현재까지 누적
+    for(let y=2025;y<=cy;y++){
+      const startM=y===2025?1:1;
+      const endM=y===cy?cm:12;
+      for(let m=startM;m<=endM;m++){
+        let d={},mm={};
+        try{d=JSON.parse(localStorage.getItem(dk(y,m))||'{}');}catch{}
+        try{mm=JSON.parse(localStorage.getItem(mk(y,m))||'{}');}catch{}
+        let myInc=0,myExp=0;
+        ITEMS.income.forEach(it=>{myInc+=getTotalFrom(it.id,d,mm);});
+        ['fixed','variable','irregular'].forEach(c=>ITEMS[c].forEach(it=>{myExp+=getTotalFrom(it.id,d,mm);}));
+        cumulative+=myInc-myExp;
+      }
+    }
+  }
 
   document.getElementById('s-inc').textContent=fmt(inc,true);
   document.getElementById('s-exp').textContent=fmt(exp,true);
   document.getElementById('s-sav').textContent=fmt(sav,true);
 
   const bel=document.getElementById('s-bal');
-  bel.textContent=fmt(bal,true);
-  bel.style.color=bal<0?'var(--exp)':bal===0?'var(--txt2)':'var(--txt)';
+  bel.textContent=fmt(balance,true);
+  bel.style.color=balance<0?'var(--exp)':balance===0?'var(--txt2)':'var(--txt)';
+  
+  // 누적금액 표시
+  const cel=document.getElementById('s-cumulative');
+  if(cel){
+    cel.textContent=fmt(cumulative,true);
+    cel.style.color=cumulative<0?'var(--exp)':cumulative===0?'var(--txt2)':'var(--acc3)';
+  }
 }
 
 function renderAll(){
@@ -665,9 +691,15 @@ function onBudgetInput(inp){
   const v=parseInt(inp.value)||0;
   const original=parseInt(inp.dataset.original)||0;
   const cat=inp.dataset.cat;
+  const id=inp.dataset.id;
+  
+  // 원래 값과 같으면 override 제거
+  if(v===original&&cat!=='irregular'){
+    delete mBudget[id];
+  }
+  
   if(v!==original){
     inp.style.color='var(--acc4)';
-    // 옆에 변경 표시
     let mark=inp.parentElement.querySelector('.changed-mark');
     if(!mark){
       mark=document.createElement('span');
@@ -677,7 +709,7 @@ function onBudgetInput(inp){
       inp.parentElement.appendChild(mark);
     }
   } else {
-    inp.style.color=cat==='irregular'?'var(--acc)':'var(--acc)';
+    inp.style.color='';
     const mark=inp.parentElement.querySelector('.changed-mark');
     if(mark)mark.remove();
   }

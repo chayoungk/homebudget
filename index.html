@@ -28,6 +28,10 @@
     <div class="scard"><div class="slbl">저축</div><div class="samt" id="s-sav" style="color:var(--sav)">0원</div></div>
     <div class="scard"><div class="slbl">잔액</div><div class="samt" id="s-bal">0원</div></div>
   </div>
+  <div style="margin-top:8px;padding:6px 10px;background:rgba(67,233,123,.08);border-radius:8px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:10px;color:var(--txt3)">❣️모인돈</span>
+    <span style="font-size:12px;font-weight:700" id="s-cumulative">0원</span>
+  </div>
 </div>
 
 <div class="tabs" id="ledger-tabs">
@@ -157,7 +161,7 @@
       <button class="set-save" style="flex:1" onclick="saveBudgets()">이 달 예산 저장</button>
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="set-reset" style="flex:1" onclick="resetMonth()">이번달 초기화</button>
+      <button class="set-reset" style="flex:1" onclick="resetMonth()">이달만 초기화</button>
       <button class="set-reset" style="flex:1;background:#aa3355" onclick="resetData()">전체 초기화</button>
     </div>
     <div style="margin-top:16px;padding:13px;background:var(--card);border-radius:var(--r);font-size:12px;color:var(--txt3);line-height:1.8">
